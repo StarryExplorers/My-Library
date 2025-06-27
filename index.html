@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>My Library</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="icon-192.png">
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: linear-gradient(to right, #7f9cf5, #a78bfa);
+      color: white;
+      text-align: center;
+      padding: 2rem;
+      margin: 0;
+    }
+    h1 {
+      font-size: 3rem;
+      margin-bottom: 1rem;
+      text-shadow: 2px 2px #00000055;
+    }
+    input, select, textarea {
+      padding: 0.8rem;
+      width: 80%;
+      max-width: 400px;
+      border-radius: 1rem;
+      border: none;
+      margin: 0.3rem auto;
+      font-size: 1rem;
+      display: block;
+    }
+    button {
+      padding: 0.7rem 1.5rem;
+      margin: 1rem 0.3rem;
+      font-size: 1rem;
+      border: none;
+      border-radius: 1.5rem;
+      background-color: #5a67d8;
+      color: white;
+      cursor: pointer;
+      box-shadow: 0 4px 10px #00000044;
+    }
+    .book-list, .stats {
+      margin-top: 2rem;
+      text-align: left;
+      max-width: 600px;
+      margin-left: auto;
+      margin-right: auto;
+      background-color: #4c51bf;
+      padding: 1rem;
+      border-radius: 1rem;
+    }
+    .book-item {
+      margin-bottom: 1rem;
+      background: #6b46c1;
+      padding: 1rem;
+      border-radius: 1rem;
+    }
+    .book-item button {
+      margin-top: 0.5rem;
+      background-color: #ed64a6;
+    }
+  </style>
+</head>
+<body>
+  <h1>My Library 📚</h1>
+
+  <input type="text" id="title" placeholder="Book Title">
+  <input type="text" id="author" placeholder="Author">
+  <input type="text" id="genre" placeholder="Genre (e.g. Mystery)">
+  <select id="status">
+    <option value="Reading">Reading</option>
+    <option value="Read">Read</option>
+  </select>
+  <input type="number" id="rating" placeholder="Rating (1-5)">
+  <textarea id="notes" placeholder="Notes or thoughts..."></textarea>
+  <input type="text" id="coverEmoji" placeholder="Emoji for Cover (📘, 📕, etc)">
+  <button onclick="addBook()">Add Book</button>
+
+  <input type="text" id="search" placeholder="Search by title, author, or genre" oninput="searchBooks()">
+
+  <div class="stats" id="statsBox">
+    <h2>📊 Stats</h2>
+    <p>Total Books: <span id="totalBooks">0</span></p>
+    <p>Books Read: <span id="totalRead">0</span></p>
+    <p>Books Reading: <span id="totalReading">0</span></p>
+  </div>
+
+  <div class="book-list">
+    <h2>📖 Reading</h2>
+    <div id="readingList"></div>
+
+    <h2>✅ Read</h2>
+    <div id="readList"></div>
+  </div>
+
+  <button onclick="exportBooks()">📥 Export Backup</button>
+  <button onclick="getRecommendation()">✨ Recommend Me a Book</button>
+  <div id="recommendation"></div>
+
+  <script>
+    const readingList = document.getElementById("readingList");
+    const readList = document.getElementById("readList");
+    const statsBox = document.getElementById("statsBox");
+
+    let books = JSON.parse(localStorage.getItem("books") || "[]");
+
+    function renderBooks() {
+      readingList.innerHTML = "";
+      readList.innerHTML = "";
+      let total = books.length;
+      let totalRead = 0;
+      let totalReading = 0;
+
+      books.forEach((book, index) => {
+        const div = document.createElement("div");
+        div.className = "book-item";
+        div.innerHTML = `${book.cover || '📘'} <strong>${book.title}</strong> by ${book.author}<br>` +
+          `Genre: ${book.genre || '—'}<br>` +
+          `Rating: ${book.rating || '—'} ⭐<br>` +
+          `${book.notes ? 'Note: ' + book.notes + '<br>' : ''}` +
+          `${book.status === 'Read' ? '📅 Finished on: ' + book.dateFinished : ''}`;
+
+        const actionBtn = document.createElement("button");
+        actionBtn.textContent = book.status === "Reading" ? "Mark as Read" : "Remove";
+        actionBtn.onclick = () => {
+          if (book.status === "Reading") {
+            book.status = "Read";
+            book.dateFinished = new Date().toDateString();
+          } else {
+            books.splice(index, 1);
+          }
+          saveBooks();
+        };
+
+        div.appendChild(actionBtn);
+
+        if (book.status === "Reading") {
+          readingList.appendChild(div);
+          totalReading++;
+        } else {
+          readList.appendChild(div);
+          totalRead++;
+        }
+      });
+
+      document.getElementById("totalBooks").textContent = total;
+      document.getElementById("totalRead").textContent = totalRead;
+      document.getElementById("totalReading").textContent = totalReading;
+    }
+
+    function addBook() {
+      const title = document.getElementById("title").value.trim();
+      const author = document.getElementById("author").value.trim();
+      const genre = document.getElementById("genre").value.trim();
+      const status = document.getElementById("status").value;
+      const rating = document.getElementById("rating").value.trim();
+      const notes = document.getElementById("notes").value.trim();
+      const cover = document.getElementById("coverEmoji").value.trim();
+
+      if (!title || !author) return alert("Fill in both title and author!");
+      books.push({ title, author, genre, status, rating, notes, cover });
+      saveBooks();
+    }
+
+    function saveBooks() {
+      localStorage.setItem("books", JSON.stringify(books));
+      renderBooks();
+    }
+
+    function searchBooks() {
+      const query = document.getElementById("search").value.toLowerCase();
+      const filtered = books.filter(b => b.title.toLowerCase().includes(query) || b.author.toLowerCase().includes(query) || b.genre?.toLowerCase().includes(query));
+      readingList.innerHTML = "";
+      readList.innerHTML = "";
+      filtered.forEach((book, index) => {
+        const div = document.createElement("div");
+        div.className = "book-item";
+        div.innerHTML = `${book.cover || '📘'} <strong>${book.title}</strong> by ${book.author}<br>` +
+          `Genre: ${book.genre || '—'}<br>` +
+          `Rating: ${book.rating || '—'} ⭐<br>` +
+          `${book.notes ? 'Note: ' + book.notes + '<br>' : ''}` +
+          `${book.status === 'Read' ? '📅 Finished on: ' + book.dateFinished : ''}`;
+        if (book.status === "Reading") readingList.appendChild(div);
+        else readList.appendChild(div);
+      });
+    }
+
+    function exportBooks() {
+      const blob = new Blob([JSON.stringify(books, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "my-library-backup.json";
+      a.click();
+    }
+
+    function getRecommendation() {
+      const recBox = document.getElementById("recommendation");
+      const genre = books.find(b => b.genre)?.genre || "fiction";
+      fetch(`https://www.googleapis.com/books/v1/volumes?q=subject:${genre}&maxResults=1`)
+        .then(res => res.json())
+        .then(data => {
+          if (data.items && data.items.length > 0) {
+            const book = data.items[0].volumeInfo;
+            recBox.innerHTML = `<strong>📚 Spark Suggests:</strong> ${book.title} by ${book.authors?.join(', ') || 'Unknown'}<br><em>${book.description?.slice(0, 100)}...</em>`;
+          } else {
+            recBox.textContent = "Couldn't find any books right now 😢";
+          }
+        });
+    }
+
+    renderBooks();
+
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('service-worker.js');
+    }
+  </script>
+</body>
+</html>
