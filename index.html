@@ -41,7 +41,7 @@
       cursor: pointer;
       box-shadow: 0 4px 10px #00000044;
     }
-    .book-list, .stats, .uploaded-section {
+    .book-list, .stats {
       margin-top: 2rem;
       text-align: left;
       max-width: 600px;
@@ -61,18 +61,34 @@
       margin-top: 0.5rem;
       background-color: #ed64a6;
     }
-    iframe {
-      width: 100%;
-      height: 500px;
-      border: none;
-      margin-top: 1rem;
+    #readerModal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(0,0,0,0.9);
+      color: white;
+      display: none;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      padding: 2rem;
+    }
+    #readerModal textarea {
+      width: 80%;
+      height: 60%;
+      font-size: 1rem;
       border-radius: 1rem;
-      background: white;
+      padding: 1rem;
     }
   </style>
 </head>
 <body>
   <h1>My Library 📚</h1>
+
+  <input type="file" id="fileUpload">
+  <button onclick="handleFileUpload()">Upload Book File</button>
 
   <input type="text" id="title" placeholder="Book Title">
   <input type="text" id="author" placeholder="Author">
@@ -107,22 +123,16 @@
   <button onclick="getRecommendation()">✨ Recommend Me a Book</button>
   <div id="recommendation"></div>
 
-  <div class="uploaded-section">
-    <h2>📤 Uploaded Books</h2>
-    <input type="file" id="upload" accept=".pdf,.txt,.epub">
-    <div id="uploadedBooks"></div>
-    <iframe id="reader" style="display:none;"></iframe>
+  <div id="readerModal">
+    <textarea readonly id="readerText"></textarea>
+    <button onclick="closeReader()">Close</button>
   </div>
 
   <script>
     const readingList = document.getElementById("readingList");
     const readList = document.getElementById("readList");
-    const statsBox = document.getElementById("statsBox");
-    const uploadedBooks = document.getElementById("uploadedBooks");
-    const reader = document.getElementById("reader");
-
     let books = JSON.parse(localStorage.getItem("books") || "[]");
-    let uploads = JSON.parse(localStorage.getItem("uploads") || "[]");
+    let bookFiles = JSON.parse(localStorage.getItem("bookFiles") || "{}");
 
     function renderBooks() {
       readingList.innerHTML = "";
@@ -140,6 +150,16 @@
           `${book.notes ? 'Note: ' + book.notes + '<br>' : ''}` +
           `${book.status === 'Read' ? '📅 Finished on: ' + book.dateFinished : ''}`;
 
+        const readBtn = document.createElement("button");
+        readBtn.textContent = "📖 Read";
+        readBtn.onclick = () => {
+          const text = bookFiles[book.title];
+          if (!text) return alert("No file uploaded for this book.");
+          document.getElementById("readerText").value = text;
+          document.getElementById("readerModal").style.display = "flex";
+        };
+        div.appendChild(readBtn);
+
         const actionBtn = document.createElement("button");
         actionBtn.textContent = book.status === "Reading" ? "Mark as Read" : "Remove";
         actionBtn.onclick = () => {
@@ -148,10 +168,11 @@
             book.dateFinished = new Date().toDateString();
           } else {
             books.splice(index, 1);
+            delete bookFiles[book.title];
+            localStorage.setItem("bookFiles", JSON.stringify(bookFiles));
           }
           saveBooks();
         };
-
         div.appendChild(actionBtn);
 
         if (book.status === "Reading") {
@@ -176,7 +197,6 @@
       const rating = document.getElementById("rating").value.trim();
       const notes = document.getElementById("notes").value.trim();
       const cover = document.getElementById("coverEmoji").value.trim();
-
       if (!title || !author) return alert("Fill in both title and author!");
       books.push({ title, author, genre, status, rating, notes, cover });
       saveBooks();
@@ -185,6 +205,23 @@
     function saveBooks() {
       localStorage.setItem("books", JSON.stringify(books));
       renderBooks();
+    }
+
+    function handleFileUpload() {
+      const fileInput = document.getElementById("fileUpload");
+      const file = fileInput.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const content = e.target.result;
+        const title = prompt("Enter the book title for this file:");
+        if (title) {
+          bookFiles[title] = content;
+          localStorage.setItem("bookFiles", JSON.stringify(bookFiles));
+          alert("Book file saved!");
+        }
+      };
+      reader.readAsText(file);
     }
 
     function searchBooks() {
@@ -229,44 +266,11 @@
         });
     }
 
-    document.getElementById("upload").addEventListener("change", (e) => {
-      const file = e.target.files[0];
-      if (file) {
-        const url = URL.createObjectURL(file);
-        uploads.push({ name: file.name, url });
-        localStorage.setItem("uploads", JSON.stringify(uploads));
-        renderUploads();
-      }
-    });
-
-    function renderUploads() {
-      uploadedBooks.innerHTML = "";
-      uploads.forEach((book, index) => {
-        const div = document.createElement("div");
-        div.className = "book-item";
-        div.innerHTML = `<strong>${book.name}</strong><br>`;
-        const readBtn = document.createElement("button");
-        readBtn.textContent = "📖 Read";
-        readBtn.onclick = () => {
-          reader.src = book.url;
-          reader.style.display = 'block';
-        };
-        const removeBtn = document.createElement("button");
-        removeBtn.textContent = "❌ Remove";
-        removeBtn.onclick = () => {
-          uploads.splice(index, 1);
-          localStorage.setItem("uploads", JSON.stringify(uploads));
-          renderUploads();
-        };
-        div.appendChild(readBtn);
-        div.appendChild(removeBtn);
-        uploadedBooks.appendChild(div);
-      });
+    function closeReader() {
+      document.getElementById("readerModal").style.display = "none";
     }
 
     renderBooks();
-    renderUploads();
-
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('service-worker.js');
     }
