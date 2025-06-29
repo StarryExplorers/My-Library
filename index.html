@@ -6,8 +6,6 @@
   <title>My Library</title>
   <link rel="manifest" href="manifest.json">
   <link rel="icon" href="icon-192.png">
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/epub.js/0.3.88/epub.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.13.216/pdf.min.js"></script>
   <style>
     body {
       font-family: 'Segoe UI', sans-serif;
@@ -43,7 +41,7 @@
       cursor: pointer;
       box-shadow: 0 4px 10px #00000044;
     }
-    .book-list, .stats {
+    .book-list, .stats, .uploaded-section {
       margin-top: 2rem;
       text-align: left;
       max-width: 600px;
@@ -63,122 +61,210 @@
       margin-top: 0.5rem;
       background-color: #ed64a6;
     }
-    #readerContainer {
-      display: none;
-      position: fixed;
-      top: 0; left: 0;
-      width: 100%; height: 100%;
-      background: black;
-      z-index: 9999;
-    }
-    #readerIframe {
-      width: 100%; height: 100%;
-    }
-    #closeReader {
-      position: absolute;
-      top: 10px; right: 10px;
-      z-index: 10000;
-      background: red;
-      color: white;
+    iframe {
+      width: 100%;
+      height: 500px;
       border: none;
+      margin-top: 1rem;
       border-radius: 1rem;
-      padding: 0.5rem 1rem;
+      background: white;
     }
   </style>
 </head>
 <body>
   <h1>My Library 📚</h1>
 
-  <input type="file" id="uploadBook" accept=".txt,.epub,.pdf">
-  <div class="book-list">
-    <h2>📥 Uploaded Books</h2>
-    <div id="uploadedList"></div>
+  <input type="text" id="title" placeholder="Book Title">
+  <input type="text" id="author" placeholder="Author">
+  <input type="text" id="genre" placeholder="Genre (e.g. Mystery)">
+  <select id="status">
+    <option value="Reading">Reading</option>
+    <option value="Read">Read</option>
+  </select>
+  <input type="number" id="rating" placeholder="Rating (1-5)">
+  <textarea id="notes" placeholder="Notes or thoughts..."></textarea>
+  <input type="text" id="coverEmoji" placeholder="Emoji for Cover (📘, 📕, etc)">
+  <button onclick="addBook()">Add Book</button>
+
+  <input type="text" id="search" placeholder="Search by title, author, or genre" oninput="searchBooks()">
+
+  <div class="stats" id="statsBox">
+    <h2>📊 Stats</h2>
+    <p>Total Books: <span id="totalBooks">0</span></p>
+    <p>Books Read: <span id="totalRead">0</span></p>
+    <p>Books Reading: <span id="totalReading">0</span></p>
   </div>
 
-  <div id="readerContainer">
-    <button id="closeReader">❌ Close</button>
-    <iframe id="readerIframe"></iframe>
+  <div class="book-list">
+    <h2>📖 Reading</h2>
+    <div id="readingList"></div>
+
+    <h2>✅ Read</h2>
+    <div id="readList"></div>
+  </div>
+
+  <button onclick="exportBooks()">📥 Export Backup</button>
+  <button onclick="getRecommendation()">✨ Recommend Me a Book</button>
+  <div id="recommendation"></div>
+
+  <div class="uploaded-section">
+    <h2>📤 Uploaded Books</h2>
+    <input type="file" id="upload" accept=".pdf,.txt,.epub">
+    <div id="uploadedBooks"></div>
+    <iframe id="reader" style="display:none;"></iframe>
   </div>
 
   <script>
-    let uploadedBooks = JSON.parse(localStorage.getItem("uploadedBooks") || "[]");
-    const uploadedList = document.getElementById("uploadedList");
-    const uploadInput = document.getElementById("uploadBook");
-    const reader = document.getElementById("readerContainer");
-    const iframe = document.getElementById("readerIframe");
-    const closeReader = document.getElementById("closeReader");
+    const readingList = document.getElementById("readingList");
+    const readList = document.getElementById("readList");
+    const statsBox = document.getElementById("statsBox");
+    const uploadedBooks = document.getElementById("uploadedBooks");
+    const reader = document.getElementById("reader");
 
-    function renderUploads() {
-      uploadedList.innerHTML = "";
-      uploadedBooks.forEach((book, index) => {
+    let books = JSON.parse(localStorage.getItem("books") || "[]");
+    let uploads = JSON.parse(localStorage.getItem("uploads") || "[]");
+
+    function renderBooks() {
+      readingList.innerHTML = "";
+      readList.innerHTML = "";
+      let total = books.length;
+      let totalRead = 0;
+      let totalReading = 0;
+
+      books.forEach((book, index) => {
         const div = document.createElement("div");
         div.className = "book-item";
-        div.innerHTML = `<strong>${book.name}</strong><br>${book.type.toUpperCase()}`;
-        const readBtn = document.createElement("button");
-        readBtn.textContent = "Read";
-        readBtn.onclick = () => readBook(book);
-        const removeBtn = document.createElement("button");
-        removeBtn.textContent = "Remove";
-        removeBtn.onclick = () => {
-          uploadedBooks.splice(index, 1);
-          saveUploads();
+        div.innerHTML = `${book.cover || '📘'} <strong>${book.title}</strong> by ${book.author}<br>` +
+          `Genre: ${book.genre || '—'}<br>` +
+          `Rating: ${book.rating || '—'} ⭐<br>` +
+          `${book.notes ? 'Note: ' + book.notes + '<br>' : ''}` +
+          `${book.status === 'Read' ? '📅 Finished on: ' + book.dateFinished : ''}`;
+
+        const actionBtn = document.createElement("button");
+        actionBtn.textContent = book.status === "Reading" ? "Mark as Read" : "Remove";
+        actionBtn.onclick = () => {
+          if (book.status === "Reading") {
+            book.status = "Read";
+            book.dateFinished = new Date().toDateString();
+          } else {
+            books.splice(index, 1);
+          }
+          saveBooks();
         };
-        div.appendChild(readBtn);
-        div.appendChild(removeBtn);
-        uploadedList.appendChild(div);
+
+        div.appendChild(actionBtn);
+
+        if (book.status === "Reading") {
+          readingList.appendChild(div);
+          totalReading++;
+        } else {
+          readList.appendChild(div);
+          totalRead++;
+        }
+      });
+
+      document.getElementById("totalBooks").textContent = total;
+      document.getElementById("totalRead").textContent = totalRead;
+      document.getElementById("totalReading").textContent = totalReading;
+    }
+
+    function addBook() {
+      const title = document.getElementById("title").value.trim();
+      const author = document.getElementById("author").value.trim();
+      const genre = document.getElementById("genre").value.trim();
+      const status = document.getElementById("status").value;
+      const rating = document.getElementById("rating").value.trim();
+      const notes = document.getElementById("notes").value.trim();
+      const cover = document.getElementById("coverEmoji").value.trim();
+
+      if (!title || !author) return alert("Fill in both title and author!");
+      books.push({ title, author, genre, status, rating, notes, cover });
+      saveBooks();
+    }
+
+    function saveBooks() {
+      localStorage.setItem("books", JSON.stringify(books));
+      renderBooks();
+    }
+
+    function searchBooks() {
+      const query = document.getElementById("search").value.toLowerCase();
+      const filtered = books.filter(b => b.title.toLowerCase().includes(query) || b.author.toLowerCase().includes(query) || b.genre?.toLowerCase().includes(query));
+      readingList.innerHTML = "";
+      readList.innerHTML = "";
+      filtered.forEach((book, index) => {
+        const div = document.createElement("div");
+        div.className = "book-item";
+        div.innerHTML = `${book.cover || '📘'} <strong>${book.title}</strong> by ${book.author}<br>` +
+          `Genre: ${book.genre || '—'}<br>` +
+          `Rating: ${book.rating || '—'} ⭐<br>` +
+          `${book.notes ? 'Note: ' + book.notes + '<br>' : ''}` +
+          `${book.status === 'Read' ? '📅 Finished on: ' + book.dateFinished : ''}`;
+        if (book.status === "Reading") readingList.appendChild(div);
+        else readList.appendChild(div);
       });
     }
 
-    uploadInput.addEventListener("change", () => {
-      const file = uploadInput.files[0];
-      const reader = new FileReader();
-      reader.onload = () => {
-        uploadedBooks.push({ name: file.name, content: reader.result, type: file.name.split(".").pop() });
-        saveUploads();
-      };
-      if (file.name.endsWith(".txt") || file.name.endsWith(".epub") || file.name.endsWith(".pdf")) {
-        reader.readAsDataURL(file);
-      } else {
-        alert("Unsupported format.");
+    function exportBooks() {
+      const blob = new Blob([JSON.stringify(books, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "my-library-backup.json";
+      a.click();
+    }
+
+    function getRecommendation() {
+      const recBox = document.getElementById("recommendation");
+      const genre = books.find(b => b.genre)?.genre || "fiction";
+      fetch(`https://www.googleapis.com/books/v1/volumes?q=subject:${genre}&maxResults=1`)
+        .then(res => res.json())
+        .then(data => {
+          if (data.items && data.items.length > 0) {
+            const book = data.items[0].volumeInfo;
+            recBox.innerHTML = `<strong>📚 Spark Suggests:</strong> ${book.title} by ${book.authors?.join(', ') || 'Unknown'}<br><em>${book.description?.slice(0, 100)}...</em>`;
+          } else {
+            recBox.textContent = "Couldn't find any books right now 😢";
+          }
+        });
+    }
+
+    document.getElementById("upload").addEventListener("change", (e) => {
+      const file = e.target.files[0];
+      if (file) {
+        const url = URL.createObjectURL(file);
+        uploads.push({ name: file.name, url });
+        localStorage.setItem("uploads", JSON.stringify(uploads));
+        renderUploads();
       }
     });
 
-    function saveUploads() {
-      localStorage.setItem("uploadedBooks", JSON.stringify(uploadedBooks));
-      renderUploads();
+    function renderUploads() {
+      uploadedBooks.innerHTML = "";
+      uploads.forEach((book, index) => {
+        const div = document.createElement("div");
+        div.className = "book-item";
+        div.innerHTML = `<strong>${book.name}</strong><br>`;
+        const readBtn = document.createElement("button");
+        readBtn.textContent = "📖 Read";
+        readBtn.onclick = () => {
+          reader.src = book.url;
+          reader.style.display = 'block';
+        };
+        const removeBtn = document.createElement("button");
+        removeBtn.textContent = "❌ Remove";
+        removeBtn.onclick = () => {
+          uploads.splice(index, 1);
+          localStorage.setItem("uploads", JSON.stringify(uploads));
+          renderUploads();
+        };
+        div.appendChild(readBtn);
+        div.appendChild(removeBtn);
+        uploadedBooks.appendChild(div);
+      });
     }
 
-    function readBook(book) {
-      if (book.type === "txt") {
-        const win = window.open();
-        win.document.write(`<pre>${atob(book.content.split(",")[1])}</pre>`);
-      } else if (book.type === "epub") {
-        const blob = base64ToBlob(book.content.split(",")[1], "application/epub+zip");
-        const url = URL.createObjectURL(blob);
-        iframe.src = `https://futurepress.github.io/epubjs-reader/?book=${encodeURIComponent(url)}`;
-        reader.style.display = "block";
-      } else if (book.type === "pdf") {
-        const blob = base64ToBlob(book.content.split(",")[1], "application/pdf");
-        const url = URL.createObjectURL(blob);
-        iframe.src = url;
-        reader.style.display = "block";
-      }
-    }
-
-    function base64ToBlob(base64, mime) {
-      const binary = atob(base64);
-      const array = [];
-      for (let i = 0; i < binary.length; i++) {
-        array.push(binary.charCodeAt(i));
-      }
-      return new Blob([new Uint8Array(array)], { type: mime });
-    }
-
-    closeReader.addEventListener("click", () => {
-      reader.style.display = "none";
-      iframe.src = "";
-    });
-
+    renderBooks();
     renderUploads();
 
     if ('serviceWorker' in navigator) {
