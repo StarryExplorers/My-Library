@@ -7,15 +7,18 @@
   <link rel="manifest" href="manifest.json" />
   <link rel="icon" href="icon-192.png" />
   <style>
-    * {
-      box-sizing: border-box;
-    }
+    * { box-sizing: border-box; }
     body {
       font-family: 'Segoe UI', sans-serif;
       background: linear-gradient(to right, #7f9cf5, #a78bfa);
       color: white;
       margin: 0;
       padding: 0;
+      transition: background 0.3s, color 0.3s;
+    }
+    body.dark {
+      background: #1a202c;
+      color: #e2e8f0;
     }
     header {
       padding: 1rem;
@@ -28,6 +31,7 @@
     nav {
       display: flex;
       justify-content: center;
+      flex-wrap: wrap;
       gap: 1rem;
       background: #6b46c1;
       padding: 1rem;
@@ -40,13 +44,8 @@
       padding: 0.5rem 1rem;
       cursor: pointer;
     }
-    .section {
-      display: none;
-      padding: 2rem;
-    }
-    .active {
-      display: block;
-    }
+    .section { display: none; padding: 2rem; }
+    .active { display: block; }
     input, select, textarea {
       padding: 0.8rem;
       width: 80%;
@@ -96,6 +95,20 @@
       background: white;
       color: black;
     }
+    .shelf-buttons {
+      display: flex;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 1rem;
+      margin-bottom: 1rem;
+    }
+    .stats-box {
+      text-align: center;
+      margin-top: 1rem;
+    }
+    .search-bar {
+      text-align: center;
+    }
   </style>
 </head>
 <body>
@@ -103,123 +116,85 @@
   <nav>
     <button onclick="switchSection('tracker')">📖 Book Tracker</button>
     <button onclick="switchSection('uploads')">📂 Upload & Read</button>
+    <button onclick="toggleTheme()">🌓 Toggle Theme</button>
   </nav>
-
   <div id="tracker" class="section active">
-    <input type="text" id="title" placeholder="Book Title">
-    <input type="text" id="author" placeholder="Author">
-    <input type="text" id="genre" placeholder="Genre (e.g. Mystery)">
-    <select id="status">
-      <option value="Reading">Reading</option>
-      <option value="Read">Read</option>
-    </select>
-    <input type="number" id="rating" placeholder="Rating (1-5)">
-    <textarea id="notes" placeholder="Notes or thoughts..."></textarea>
-    <input type="text" id="coverEmoji" placeholder="Emoji for Cover (📘, 📕, etc)">
-    <button onclick="addBook()">Add Book</button>
-
-    <input type="text" id="search" placeholder="Search by title, author, or genre" oninput="searchBooks()">
-
-    <div class="stats" id="statsBox">
-      <h2>📊 Stats</h2>
-      <p>Total Books: <span id="totalBooks">0</span></p>
-      <p>Books Read: <span id="totalRead">0</span></p>
-      <p>Books Reading: <span id="totalReading">0</span></p>
+    <h2>📚 Book Shelves</h2>
+    <div class="shelf-buttons">
+      <button onclick="filterShelf('all')">All</button>
+      <button onclick="filterShelf('Reading')">Reading</button>
+      <button onclick="filterShelf('Read')">Read</button>
     </div>
-
-    <div class="book-list">
-      <h2>📖 Reading</h2>
-      <div id="readingList"></div>
-
-      <h2>✅ Read</h2>
-      <div id="readList"></div>
-    </div>
+    <div class="book-list" id="bookList"></div>
+    <div class="stats-box" id="stats"></div>
+    <button onclick="backupLibrary()">💾 Backup</button>
   </div>
-
   <div id="uploads" class="section">
     <h2>📂 Upload and Read Books</h2>
+    <div class="search-bar">
+      <input type="text" id="uploadSearch" placeholder="Search uploaded books" oninput="renderUploads()" />
+    </div>
     <input type="file" id="bookFile" accept=".txt,.pdf,.epub" />
     <button onclick="uploadBook()">Upload</button>
     <div class="upload-list" id="uploadList"></div>
     <iframe id="readerFrame" style="display:none;"></iframe>
   </div>
-
   <script>
+    const bookList = document.getElementById("bookList");
+    const uploadList = document.getElementById("uploadList");
+    const readerFrame = document.getElementById("readerFrame");
+    const stats = document.getElementById("stats");
+    let books = JSON.parse(localStorage.getItem("books") || "[]");
+    let uploads = JSON.parse(localStorage.getItem("uploads") || "[]");
+
     function switchSection(id) {
       document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
       document.getElementById(id).classList.add('active');
     }
 
-    const readingList = document.getElementById("readingList");
-    const readList = document.getElementById("readList");
-    let books = JSON.parse(localStorage.getItem("books") || "[]");
+    function toggleTheme() {
+      document.body.classList.toggle('dark');
+    }
 
-    function renderBooks() {
-      readingList.innerHTML = "";
-      readList.innerHTML = "";
-      let total = books.length, totalRead = 0, totalReading = 0;
+    function filterShelf(status) {
+      renderBooks(status);
+    }
+
+    function renderBooks(filter = 'all') {
+      bookList.innerHTML = '';
+      let total = 0, totalRead = 0, totalReading = 0;
       books.forEach((book, index) => {
+        if (filter !== 'all' && book.status !== filter) return;
         const div = document.createElement("div");
         div.className = "book-item";
-        div.innerHTML = `${book.cover || '📘'} <strong>${book.title}</strong> by ${book.author}<br>` +
-          `Genre: ${book.genre || '—'}<br>` +
-          `Rating: ${book.rating || '—'} ⭐<br>` +
-          `${book.notes ? 'Note: ' + book.notes + '<br>' : ''}` +
-          `${book.status === 'Read' ? '📅 Finished on: ' + book.dateFinished : ''}`;
-        const btn = document.createElement("button");
-        btn.textContent = book.status === "Reading" ? "Mark as Read" : "Remove";
-        btn.onclick = () => {
-          if (book.status === "Reading") {
-            book.status = "Read";
-            book.dateFinished = new Date().toDateString();
-          } else {
-            books.splice(index, 1);
-          }
-          saveBooks();
+        div.innerHTML = `<strong>${book.title}</strong> by ${book.author}<br>` +
+                        `Genre: ${book.genre || '—'}<br>` +
+                        `Rating: ${book.rating || '—'} ⭐<br>` +
+                        `${book.notes ? 'Note: ' + book.notes + '<br>' : ''}` +
+                        `${book.status === 'Read' ? '📅 Finished on: ' + (book.dateFinished || '-') : ''}`;
+        const removeBtn = document.createElement("button");
+        removeBtn.textContent = "Remove";
+        removeBtn.onclick = () => {
+          books.splice(index, 1);
+          localStorage.setItem("books", JSON.stringify(books));
+          renderBooks(filter);
+          updateStats();
         };
-        div.appendChild(btn);
-        (book.status === "Reading" ? readingList : readList).appendChild(div);
+        div.appendChild(removeBtn);
+        bookList.appendChild(div);
+        total++;
+        if (book.status === "Read") totalRead++;
         if (book.status === "Reading") totalReading++;
-        else totalRead++;
       });
-      document.getElementById("totalBooks").textContent = total;
-      document.getElementById("totalRead").textContent = totalRead;
-      document.getElementById("totalReading").textContent = totalReading;
+      stats.innerHTML = `📚 Total: ${total} | ✅ Read: ${totalRead} | 📖 Reading: ${totalReading}`;
     }
 
-    function addBook() {
-      const title = document.getElementById("title").value.trim();
-      const author = document.getElementById("author").value.trim();
-      const genre = document.getElementById("genre").value.trim();
-      const status = document.getElementById("status").value;
-      const rating = document.getElementById("rating").value.trim();
-      const notes = document.getElementById("notes").value.trim();
-      const cover = document.getElementById("coverEmoji").value.trim();
-      if (!title || !author) return alert("Fill in both title and author!");
-      books.push({ title, author, genre, status, rating, notes, cover });
-      saveBooks();
-    }
-
-    function saveBooks() {
-      localStorage.setItem("books", JSON.stringify(books));
-      renderBooks();
-    }
-
-    function searchBooks() {
-      const query = document.getElementById("search").value.toLowerCase();
-      const filtered = books.filter(b => b.title.toLowerCase().includes(query) || b.author.toLowerCase().includes(query) || b.genre?.toLowerCase().includes(query));
-      readingList.innerHTML = "";
-      readList.innerHTML = "";
-      filtered.forEach((book, index) => {
-        const div = document.createElement("div");
-        div.className = "book-item";
-        div.innerHTML = `${book.cover || '📘'} <strong>${book.title}</strong> by ${book.author}<br>` +
-          `Genre: ${book.genre || '—'}<br>` +
-          `Rating: ${book.rating || '—'} ⭐<br>` +
-          `${book.notes ? 'Note: ' + book.notes + '<br>' : ''}` +
-          `${book.status === 'Read' ? '📅 Finished on: ' + book.dateFinished : ''}`;
-        (book.status === "Reading" ? readingList : readList).appendChild(div);
-      });
+    function backupLibrary() {
+      const blob = new Blob([JSON.stringify(books)], { type: "application/json" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = "my-library-backup.json";
+      a.click();
     }
 
     function uploadBook() {
@@ -230,7 +205,6 @@
         const data = e.target.result;
         const id = Date.now();
         const entry = { id, name: file.name, content: data };
-        const uploads = JSON.parse(localStorage.getItem("uploads") || "[]");
         uploads.push(entry);
         localStorage.setItem("uploads", JSON.stringify(uploads));
         renderUploads();
@@ -239,32 +213,34 @@
     }
 
     function renderUploads() {
-      const uploads = JSON.parse(localStorage.getItem("uploads") || "[]");
-      const list = document.getElementById("uploadList");
-      const frame = document.getElementById("readerFrame");
-      list.innerHTML = "";
-      uploads.forEach(upload => {
+      const query = document.getElementById("uploadSearch").value.toLowerCase();
+      uploadList.innerHTML = "";
+      uploads.filter(upload => upload.name.toLowerCase().includes(query)).forEach(upload => {
         const div = document.createElement("div");
         div.className = "upload-item";
         div.innerHTML = `<strong>${upload.name}</strong><br>`;
         const readBtn = document.createElement("button");
         readBtn.textContent = "Read";
         readBtn.onclick = () => {
-          frame.style.display = 'block';
-          frame.srcdoc = `<pre style='white-space: pre-wrap; padding: 1rem;'>${upload.content.replaceAll('<', '&lt;')}</pre>`;
+          readerFrame.style.display = 'block';
+          readerFrame.srcdoc = `<pre style='white-space: pre-wrap; padding: 1rem;'>${upload.content.replaceAll('<', '&lt;')}</pre>`;
         };
         const removeBtn = document.createElement("button");
         removeBtn.textContent = "Remove";
         removeBtn.onclick = () => {
-          const updated = uploads.filter(u => u.id !== upload.id);
-          localStorage.setItem("uploads", JSON.stringify(updated));
-          frame.style.display = 'none';
+          uploads = uploads.filter(u => u.id !== upload.id);
+          localStorage.setItem("uploads", JSON.stringify(uploads));
+          readerFrame.style.display = 'none';
           renderUploads();
         };
         div.appendChild(readBtn);
         div.appendChild(removeBtn);
-        list.appendChild(div);
+        uploadList.appendChild(div);
       });
+    }
+
+    function updateStats() {
+      renderBooks();
     }
 
     renderBooks();
