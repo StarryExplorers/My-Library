@@ -217,5 +217,59 @@
       navigator.serviceWorker.register('service-worker.js');
     }
   </script>
+  <!-- Add this just above </body> in your current file -->
+
+<hr style="margin: 3rem auto; width: 80%; border: 1px solid #fff3;">
+<h2>📤 My Uploads</h2>
+<input type="file" id="upload" accept=".txt,.pdf" multiple />
+<div id="uploadList" class="book-list"></div>
+
+<div id="readerBox" class="book-list" style="display: none; background: #6b46c1;">
+  <h3 id="readerTitle">📖 Reading Uploaded Book</h3>
+  <pre id="readerContent" style="white-space: pre-wrap; text-align: left;"></pre>
+</div>
+
+<script>
+  const uploadList = document.getElementById("uploadList");
+  const readerBox = document.getElementById("readerBox");
+  const readerTitle = document.getElementById("readerTitle");
+  const readerContent = document.getElementById("readerContent");
+
+  let uploads = JSON.parse(localStorage.getItem("uploads") || "[]");
+
+  function renderUploads() {
+    uploadList.innerHTML = "";
+    uploads.forEach((file, index) => {
+      const div = document.createElement("div");
+      div.className = "book-item";
+      div.textContent = `📄 ${file.name}`;
+      div.style.cursor = "pointer";
+      div.onclick = () => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          readerTitle.textContent = `📖 ${file.name}`;
+          readerContent.textContent = reader.result;
+          readerBox.style.display = "block";
+        };
+        reader.readAsText(file.file);
+      };
+      uploadList.appendChild(div);
+    });
+  }
+
+  document.getElementById("upload").addEventListener("change", function (e) {
+    const files = Array.from(e.target.files);
+    files.forEach(f => uploads.push({ name: f.name, file: f }));
+    localStorage.setItem("uploads", JSON.stringify(uploads.map(u => ({ name: u.name }))));
+    renderUploads();
+  });
+
+  // This lets you recover file names but not full content (browsers block file recovery from storage)
+  window.addEventListener("load", () => {
+    // uploads array has only file names on reload
+    uploads = uploads.map(u => ({ name: u.name, file: null }));
+    renderUploads();
+  });
+</script>
 </body>
 </html>
