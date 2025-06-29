@@ -1,24 +1,51 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>My Library</title>
-  <link rel="manifest" href="manifest.json">
-  <link rel="icon" href="icon-192.png">
+  <link rel="manifest" href="manifest.json" />
+  <link rel="icon" href="icon-192.png" />
   <style>
+    * {
+      box-sizing: border-box;
+    }
     body {
       font-family: 'Segoe UI', sans-serif;
       background: linear-gradient(to right, #7f9cf5, #a78bfa);
       color: white;
-      text-align: center;
-      padding: 2rem;
       margin: 0;
+      padding: 0;
     }
-    h1 {
-      font-size: 3rem;
-      margin-bottom: 1rem;
-      text-shadow: 2px 2px #00000055;
+    header {
+      padding: 1rem;
+      background-color: #5a67d8;
+      text-align: center;
+      font-size: 2rem;
+      font-weight: bold;
+      box-shadow: 0 4px 8px #00000033;
+    }
+    nav {
+      display: flex;
+      justify-content: center;
+      gap: 1rem;
+      background: #6b46c1;
+      padding: 1rem;
+    }
+    nav button {
+      background: #4c51bf;
+      border: none;
+      border-radius: 1rem;
+      color: white;
+      padding: 0.5rem 1rem;
+      cursor: pointer;
+    }
+    .section {
+      display: none;
+      padding: 2rem;
+    }
+    .active {
+      display: block;
     }
     input, select, textarea {
       padding: 0.8rem;
@@ -41,7 +68,7 @@
       cursor: pointer;
       box-shadow: 0 4px 10px #00000044;
     }
-    .book-list, .stats {
+    .book-list, .stats, .upload-list {
       margin-top: 2rem;
       text-align: left;
       max-width: 600px;
@@ -51,96 +78,86 @@
       padding: 1rem;
       border-radius: 1rem;
     }
-    .book-item {
+    .book-item, .upload-item {
       margin-bottom: 1rem;
       background: #6b46c1;
       padding: 1rem;
       border-radius: 1rem;
     }
-    .book-item button {
+    .book-item button, .upload-item button {
       margin-top: 0.5rem;
       background-color: #ed64a6;
     }
-    #readerModal {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100vw;
-      height: 100vh;
-      background: rgba(0,0,0,0.9);
-      color: white;
-      display: none;
-      flex-direction: column;
-      justify-content: center;
-      align-items: center;
-      padding: 2rem;
-    }
-    #readerModal textarea {
-      width: 80%;
-      height: 60%;
-      font-size: 1rem;
-      border-radius: 1rem;
-      padding: 1rem;
+    iframe {
+      width: 90%;
+      height: 500px;
+      border: none;
+      margin-top: 1rem;
+      background: white;
+      color: black;
     }
   </style>
 </head>
 <body>
-  <h1>My Library 📚</h1>
+  <header>My Library 📚</header>
+  <nav>
+    <button onclick="switchSection('tracker')">📖 Book Tracker</button>
+    <button onclick="switchSection('uploads')">📂 Upload & Read</button>
+  </nav>
 
-  <input type="file" id="fileUpload">
-  <button onclick="handleFileUpload()">Upload Book File</button>
+  <div id="tracker" class="section active">
+    <input type="text" id="title" placeholder="Book Title">
+    <input type="text" id="author" placeholder="Author">
+    <input type="text" id="genre" placeholder="Genre (e.g. Mystery)">
+    <select id="status">
+      <option value="Reading">Reading</option>
+      <option value="Read">Read</option>
+    </select>
+    <input type="number" id="rating" placeholder="Rating (1-5)">
+    <textarea id="notes" placeholder="Notes or thoughts..."></textarea>
+    <input type="text" id="coverEmoji" placeholder="Emoji for Cover (📘, 📕, etc)">
+    <button onclick="addBook()">Add Book</button>
 
-  <input type="text" id="title" placeholder="Book Title">
-  <input type="text" id="author" placeholder="Author">
-  <input type="text" id="genre" placeholder="Genre (e.g. Mystery)">
-  <select id="status">
-    <option value="Reading">Reading</option>
-    <option value="Read">Read</option>
-  </select>
-  <input type="number" id="rating" placeholder="Rating (1-5)">
-  <textarea id="notes" placeholder="Notes or thoughts..."></textarea>
-  <input type="text" id="coverEmoji" placeholder="Emoji for Cover (📘, 📕, etc)">
-  <button onclick="addBook()">Add Book</button>
+    <input type="text" id="search" placeholder="Search by title, author, or genre" oninput="searchBooks()">
 
-  <input type="text" id="search" placeholder="Search by title, author, or genre" oninput="searchBooks()">
+    <div class="stats" id="statsBox">
+      <h2>📊 Stats</h2>
+      <p>Total Books: <span id="totalBooks">0</span></p>
+      <p>Books Read: <span id="totalRead">0</span></p>
+      <p>Books Reading: <span id="totalReading">0</span></p>
+    </div>
 
-  <div class="stats" id="statsBox">
-    <h2>📊 Stats</h2>
-    <p>Total Books: <span id="totalBooks">0</span></p>
-    <p>Books Read: <span id="totalRead">0</span></p>
-    <p>Books Reading: <span id="totalReading">0</span></p>
+    <div class="book-list">
+      <h2>📖 Reading</h2>
+      <div id="readingList"></div>
+
+      <h2>✅ Read</h2>
+      <div id="readList"></div>
+    </div>
   </div>
 
-  <div class="book-list">
-    <h2>📖 Reading</h2>
-    <div id="readingList"></div>
-
-    <h2>✅ Read</h2>
-    <div id="readList"></div>
-  </div>
-
-  <button onclick="exportBooks()">📥 Export Backup</button>
-  <button onclick="getRecommendation()">✨ Recommend Me a Book</button>
-  <div id="recommendation"></div>
-
-  <div id="readerModal">
-    <textarea readonly id="readerText"></textarea>
-    <button onclick="closeReader()">Close</button>
+  <div id="uploads" class="section">
+    <h2>📂 Upload and Read Books</h2>
+    <input type="file" id="bookFile" accept=".txt,.pdf,.epub" />
+    <button onclick="uploadBook()">Upload</button>
+    <div class="upload-list" id="uploadList"></div>
+    <iframe id="readerFrame" style="display:none;"></iframe>
   </div>
 
   <script>
+    function switchSection(id) {
+      document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+      document.getElementById(id).classList.add('active');
+    }
+
     const readingList = document.getElementById("readingList");
     const readList = document.getElementById("readList");
     let books = JSON.parse(localStorage.getItem("books") || "[]");
-    let bookFiles = JSON.parse(localStorage.getItem("bookFiles") || "{}");
 
     function renderBooks() {
       readingList.innerHTML = "";
       readList.innerHTML = "";
-      let total = books.length;
-      let totalRead = 0;
-      let totalReading = 0;
-
+      let total = books.length, totalRead = 0, totalReading = 0;
       books.forEach((book, index) => {
         const div = document.createElement("div");
         div.className = "book-item";
@@ -149,41 +166,22 @@
           `Rating: ${book.rating || '—'} ⭐<br>` +
           `${book.notes ? 'Note: ' + book.notes + '<br>' : ''}` +
           `${book.status === 'Read' ? '📅 Finished on: ' + book.dateFinished : ''}`;
-
-        const readBtn = document.createElement("button");
-        readBtn.textContent = "📖 Read";
-        readBtn.onclick = () => {
-          const text = bookFiles[book.title];
-          if (!text) return alert("No file uploaded for this book.");
-          document.getElementById("readerText").value = text;
-          document.getElementById("readerModal").style.display = "flex";
-        };
-        div.appendChild(readBtn);
-
-        const actionBtn = document.createElement("button");
-        actionBtn.textContent = book.status === "Reading" ? "Mark as Read" : "Remove";
-        actionBtn.onclick = () => {
+        const btn = document.createElement("button");
+        btn.textContent = book.status === "Reading" ? "Mark as Read" : "Remove";
+        btn.onclick = () => {
           if (book.status === "Reading") {
             book.status = "Read";
             book.dateFinished = new Date().toDateString();
           } else {
             books.splice(index, 1);
-            delete bookFiles[book.title];
-            localStorage.setItem("bookFiles", JSON.stringify(bookFiles));
           }
           saveBooks();
         };
-        div.appendChild(actionBtn);
-
-        if (book.status === "Reading") {
-          readingList.appendChild(div);
-          totalReading++;
-        } else {
-          readList.appendChild(div);
-          totalRead++;
-        }
+        div.appendChild(btn);
+        (book.status === "Reading" ? readingList : readList).appendChild(div);
+        if (book.status === "Reading") totalReading++;
+        else totalRead++;
       });
-
       document.getElementById("totalBooks").textContent = total;
       document.getElementById("totalRead").textContent = totalRead;
       document.getElementById("totalReading").textContent = totalReading;
@@ -207,23 +205,6 @@
       renderBooks();
     }
 
-    function handleFileUpload() {
-      const fileInput = document.getElementById("fileUpload");
-      const file = fileInput.files[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = function(e) {
-        const content = e.target.result;
-        const title = prompt("Enter the book title for this file:");
-        if (title) {
-          bookFiles[title] = content;
-          localStorage.setItem("bookFiles", JSON.stringify(bookFiles));
-          alert("Book file saved!");
-        }
-      };
-      reader.readAsText(file);
-    }
-
     function searchBooks() {
       const query = document.getElementById("search").value.toLowerCase();
       const filtered = books.filter(b => b.title.toLowerCase().includes(query) || b.author.toLowerCase().includes(query) || b.genre?.toLowerCase().includes(query));
@@ -237,40 +218,58 @@
           `Rating: ${book.rating || '—'} ⭐<br>` +
           `${book.notes ? 'Note: ' + book.notes + '<br>' : ''}` +
           `${book.status === 'Read' ? '📅 Finished on: ' + book.dateFinished : ''}`;
-        if (book.status === "Reading") readingList.appendChild(div);
-        else readList.appendChild(div);
+        (book.status === "Reading" ? readingList : readList).appendChild(div);
       });
     }
 
-    function exportBooks() {
-      const blob = new Blob([JSON.stringify(books, null, 2)], { type: "application/json" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = "my-library-backup.json";
-      a.click();
+    function uploadBook() {
+      const file = document.getElementById("bookFile").files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const data = e.target.result;
+        const id = Date.now();
+        const entry = { id, name: file.name, content: data };
+        const uploads = JSON.parse(localStorage.getItem("uploads") || "[]");
+        uploads.push(entry);
+        localStorage.setItem("uploads", JSON.stringify(uploads));
+        renderUploads();
+      };
+      reader.readAsText(file);
     }
 
-    function getRecommendation() {
-      const recBox = document.getElementById("recommendation");
-      const genre = books.find(b => b.genre)?.genre || "fiction";
-      fetch(`https://www.googleapis.com/books/v1/volumes?q=subject:${genre}&maxResults=1`)
-        .then(res => res.json())
-        .then(data => {
-          if (data.items && data.items.length > 0) {
-            const book = data.items[0].volumeInfo;
-            recBox.innerHTML = `<strong>📚 Spark Suggests:</strong> ${book.title} by ${book.authors?.join(', ') || 'Unknown'}<br><em>${book.description?.slice(0, 100)}...</em>`;
-          } else {
-            recBox.textContent = "Couldn't find any books right now 😢";
-          }
-        });
-    }
-
-    function closeReader() {
-      document.getElementById("readerModal").style.display = "none";
+    function renderUploads() {
+      const uploads = JSON.parse(localStorage.getItem("uploads") || "[]");
+      const list = document.getElementById("uploadList");
+      const frame = document.getElementById("readerFrame");
+      list.innerHTML = "";
+      uploads.forEach(upload => {
+        const div = document.createElement("div");
+        div.className = "upload-item";
+        div.innerHTML = `<strong>${upload.name}</strong><br>`;
+        const readBtn = document.createElement("button");
+        readBtn.textContent = "Read";
+        readBtn.onclick = () => {
+          frame.style.display = 'block';
+          frame.srcdoc = `<pre style='white-space: pre-wrap; padding: 1rem;'>${upload.content.replaceAll('<', '&lt;')}</pre>`;
+        };
+        const removeBtn = document.createElement("button");
+        removeBtn.textContent = "Remove";
+        removeBtn.onclick = () => {
+          const updated = uploads.filter(u => u.id !== upload.id);
+          localStorage.setItem("uploads", JSON.stringify(updated));
+          frame.style.display = 'none';
+          renderUploads();
+        };
+        div.appendChild(readBtn);
+        div.appendChild(removeBtn);
+        list.appendChild(div);
+      });
     }
 
     renderBooks();
+    renderUploads();
+
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('service-worker.js');
     }
