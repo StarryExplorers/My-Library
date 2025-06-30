@@ -7,7 +7,9 @@
   <link rel="manifest" href="manifest.json" />
   <link rel="icon" href="icon-192.png" />
   <style>
-    * { box-sizing: border-box; }
+    * {
+      box-sizing: border-box;
+    }
     body {
       font-family: 'Segoe UI', sans-serif;
       background: linear-gradient(to right, #7f9cf5, #a78bfa);
@@ -44,8 +46,13 @@
       padding: 0.5rem 1rem;
       cursor: pointer;
     }
-    .section { display: none; padding: 2rem; }
-    .active { display: block; }
+    .section {
+      display: none;
+      padding: 2rem;
+    }
+    .active {
+      display: block;
+    }
     input, select, textarea {
       padding: 0.8rem;
       width: 80%;
@@ -102,13 +109,6 @@
       gap: 1rem;
       margin-bottom: 1rem;
     }
-    .stats-box {
-      text-align: center;
-      margin-top: 1rem;
-    }
-    .search-bar {
-      text-align: center;
-    }
   </style>
 </head>
 <body>
@@ -125,15 +125,25 @@
       <button onclick="filterShelf('Reading')">Reading</button>
       <button onclick="filterShelf('Read')">Read</button>
     </div>
+
+    <h3>Add a Book</h3>
+    <input type="text" id="title" placeholder="Book Title">
+    <input type="text" id="author" placeholder="Author">
+    <input type="text" id="genre" placeholder="Genre (e.g. Mystery)">
+    <select id="status">
+      <option value="Reading">Reading</option>
+      <option value="Read">Read</option>
+    </select>
+    <input type="number" id="rating" placeholder="Rating (1-5)">
+    <textarea id="notes" placeholder="Notes or thoughts..."></textarea>
+    <input type="text" id="coverEmoji" placeholder="Emoji for Cover (📘, 📕, etc)">
+    <button onclick="addBook()">Add Book</button>
+
     <div class="book-list" id="bookList"></div>
-    <div class="stats-box" id="stats"></div>
     <button onclick="backupLibrary()">💾 Backup</button>
   </div>
   <div id="uploads" class="section">
     <h2>📂 Upload and Read Books</h2>
-    <div class="search-bar">
-      <input type="text" id="uploadSearch" placeholder="Search uploaded books" oninput="renderUploads()" />
-    </div>
     <input type="file" id="bookFile" accept=".txt,.pdf,.epub" />
     <button onclick="uploadBook()">Upload</button>
     <div class="upload-list" id="uploadList"></div>
@@ -143,7 +153,6 @@
     const bookList = document.getElementById("bookList");
     const uploadList = document.getElementById("uploadList");
     const readerFrame = document.getElementById("readerFrame");
-    const stats = document.getElementById("stats");
     let books = JSON.parse(localStorage.getItem("books") || "[]");
     let uploads = JSON.parse(localStorage.getItem("uploads") || "[]");
 
@@ -162,7 +171,6 @@
 
     function renderBooks(filter = 'all') {
       bookList.innerHTML = '';
-      let total = 0, totalRead = 0, totalReading = 0;
       books.forEach((book, index) => {
         if (filter !== 'all' && book.status !== filter) return;
         const div = document.createElement("div");
@@ -170,23 +178,31 @@
         div.innerHTML = `<strong>${book.title}</strong> by ${book.author}<br>` +
                         `Genre: ${book.genre || '—'}<br>` +
                         `Rating: ${book.rating || '—'} ⭐<br>` +
-                        `${book.notes ? 'Note: ' + book.notes + '<br>' : ''}` +
-                        `${book.status === 'Read' ? '📅 Finished on: ' + (book.dateFinished || '-') : ''}`;
+                        `${book.notes ? 'Note: ' + book.notes + '<br>' : ''}`;
         const removeBtn = document.createElement("button");
         removeBtn.textContent = "Remove";
         removeBtn.onclick = () => {
           books.splice(index, 1);
           localStorage.setItem("books", JSON.stringify(books));
           renderBooks(filter);
-          updateStats();
-        };
+        }
         div.appendChild(removeBtn);
         bookList.appendChild(div);
-        total++;
-        if (book.status === "Read") totalRead++;
-        if (book.status === "Reading") totalReading++;
       });
-      stats.innerHTML = `📚 Total: ${total} | ✅ Read: ${totalRead} | 📖 Reading: ${totalReading}`;
+    }
+
+    function addBook() {
+      const title = document.getElementById("title").value.trim();
+      const author = document.getElementById("author").value.trim();
+      const genre = document.getElementById("genre").value.trim();
+      const status = document.getElementById("status").value;
+      const rating = document.getElementById("rating").value.trim();
+      const notes = document.getElementById("notes").value.trim();
+      const coverEmoji = document.getElementById("coverEmoji").value.trim();
+      if (!title || !author) return alert("Please provide both title and author");
+      books.push({ title, author, genre, status, rating, notes, coverEmoji });
+      localStorage.setItem("books", JSON.stringify(books));
+      renderBooks();
     }
 
     function backupLibrary() {
@@ -213,9 +229,8 @@
     }
 
     function renderUploads() {
-      const query = document.getElementById("uploadSearch").value.toLowerCase();
       uploadList.innerHTML = "";
-      uploads.filter(upload => upload.name.toLowerCase().includes(query)).forEach(upload => {
+      uploads.forEach(upload => {
         const div = document.createElement("div");
         div.className = "upload-item";
         div.innerHTML = `<strong>${upload.name}</strong><br>`;
@@ -237,10 +252,6 @@
         div.appendChild(removeBtn);
         uploadList.appendChild(div);
       });
-    }
-
-    function updateStats() {
-      renderBooks();
     }
 
     renderBooks();
