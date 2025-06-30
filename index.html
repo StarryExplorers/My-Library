@@ -126,7 +126,6 @@
       <button onclick="filterShelf('Read')">Read</button>
     </div>
 
-    <h3>Add a Book</h3>
     <input type="text" id="title" placeholder="Book Title">
     <input type="text" id="author" placeholder="Author">
     <input type="text" id="genre" placeholder="Genre (e.g. Mystery)">
@@ -191,20 +190,6 @@
       });
     }
 
-    function addBook() {
-      const title = document.getElementById("title").value.trim();
-      const author = document.getElementById("author").value.trim();
-      const genre = document.getElementById("genre").value.trim();
-      const status = document.getElementById("status").value;
-      const rating = document.getElementById("rating").value.trim();
-      const notes = document.getElementById("notes").value.trim();
-      const coverEmoji = document.getElementById("coverEmoji").value.trim();
-      if (!title || !author) return alert("Please provide both title and author");
-      books.push({ title, author, genre, status, rating, notes, coverEmoji });
-      localStorage.setItem("books", JSON.stringify(books));
-      renderBooks();
-    }
-
     function backupLibrary() {
       const blob = new Blob([JSON.stringify(books)], { type: "application/json" });
       const a = document.createElement("a");
@@ -220,12 +205,18 @@
       reader.onload = function(e) {
         const data = e.target.result;
         const id = Date.now();
-        const entry = { id, name: file.name, content: data };
+        const entry = { id, name: file.name, type: file.type, content: data };
         uploads.push(entry);
         localStorage.setItem("uploads", JSON.stringify(uploads));
         renderUploads();
       };
-      reader.readAsText(file);
+      if (file.type === "application/pdf") {
+        reader.readAsDataURL(file);
+      } else if (file.name.endsWith(".epub")) {
+        reader.readAsText(file);
+      } else {
+        reader.readAsText(file);
+      }
     }
 
     function renderUploads() {
@@ -238,7 +229,11 @@
         readBtn.textContent = "Read";
         readBtn.onclick = () => {
           readerFrame.style.display = 'block';
-          readerFrame.srcdoc = `<pre style='white-space: pre-wrap; padding: 1rem;'>${upload.content.replaceAll('<', '&lt;')}</pre>`;
+          if (upload.type === "application/pdf") {
+            readerFrame.src = upload.content;
+          } else {
+            readerFrame.srcdoc = `<pre style='white-space: pre-wrap; padding: 1rem;'>${upload.content.replaceAll('<', '&lt;')}</pre>`;
+          }
         };
         const removeBtn = document.createElement("button");
         removeBtn.textContent = "Remove";
@@ -263,3 +258,4 @@
   </script>
 </body>
 </html>
+
