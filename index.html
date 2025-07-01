@@ -280,6 +280,32 @@
       }
     });
 
+    function addBook() {
+  const title = document.getElementById("title").value.trim();
+  const author = document.getElementById("author").value.trim();
+  const genre = document.getElementById("genre").value.trim();
+  const status = document.getElementById("status").value;
+  const rating = document.getElementById("rating").value.trim();
+  const notes = document.getElementById("notes").value.trim();
+  const cover = document.getElementById("coverEmoji").value.trim();
+
+  if (!title || !author) return alert("Please enter both title and author!");
+
+  const newBook = { title, author, genre, status, rating, notes, cover };
+  books.push(newBook);
+  localStorage.setItem("books", JSON.stringify(books));
+  renderBooks();
+  
+  // Clear input fields after adding
+  document.getElementById("title").value = "";
+  document.getElementById("author").value = "";
+  document.getElementById("genre").value = "";
+  document.getElementById("status").value = "Reading";
+  document.getElementById("rating").value = "";
+  document.getElementById("notes").value = "";
+  document.getElementById("coverEmoji").value = "";
+    }
+    
     renderBooks();
     renderUploads();
     renderFaves();
