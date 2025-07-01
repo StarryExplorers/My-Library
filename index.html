@@ -74,7 +74,7 @@
       cursor: pointer;
       box-shadow: 0 4px 10px #00000044;
     }
-    .book-list, .stats, .upload-list {
+    .book-list, .stats, .upload-list, .bookshelf-view {
       margin-top: 2rem;
       text-align: left;
       max-width: 600px;
@@ -109,6 +109,25 @@
       gap: 1rem;
       margin-bottom: 1rem;
     }
+    .bookshelf-mode {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 1rem;
+    }
+    .bookshelf-cover {
+      width: 100px;
+      height: 140px;
+      background: #6b46c1;
+      border-radius: 0.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 0.9rem;
+      text-align: center;
+      padding: 0.5rem;
+    }
   </style>
 </head>
 <body>
@@ -116,6 +135,8 @@
   <nav>
     <button onclick="switchSection('tracker')">📖 Book Tracker</button>
     <button onclick="switchSection('uploads')">📂 Upload & Read</button>
+    <button onclick="switchSection('quotes')">📌 Saved Quotes</button>
+    <button onclick="window.location.href='sparklogin.html'">🔐 Login</button>
     <button onclick="toggleTheme()">🌓 Toggle Theme</button>
   </nav>
   <div id="tracker" class="section active">
@@ -124,8 +145,8 @@
       <button onclick="filterShelf('all')">All</button>
       <button onclick="filterShelf('Reading')">Reading</button>
       <button onclick="filterShelf('Read')">Read</button>
+      <button onclick="toggleBookshelfView()">🪑 Toggle Bookshelf</button>
     </div>
-
     <input type="text" id="title" placeholder="Book Title">
     <input type="text" id="author" placeholder="Author">
     <input type="text" id="genre" placeholder="Genre (e.g. Mystery)">
@@ -135,25 +156,28 @@
     </select>
     <input type="number" id="rating" placeholder="Rating (1-5)">
     <textarea id="notes" placeholder="Notes or thoughts..."></textarea>
-    <input type="text" id="coverEmoji" placeholder="Emoji for Cover (📘, 📕, etc)">
+    <input type="text" id="coverEmoji" placeholder="Emoji or URL for Cover">
     <button onclick="addBook()">Add Book</button>
-
     <div class="book-list" id="bookList"></div>
+    <div class="bookshelf-view" id="bookshelfView" style="display: none;"></div>
     <button onclick="backupLibrary()">💾 Backup</button>
   </div>
   <div id="uploads" class="section">
     <h2>📂 Upload and Read Books</h2>
     <input type="file" id="bookFile" accept=".txt,.pdf,.epub" />
     <button onclick="uploadBook()">Upload</button>
+    <button onclick="exportUploads()">📤 Export Uploads</button>
     <div class="upload-list" id="uploadList"></div>
     <iframe id="readerFrame" style="display:none;"></iframe>
   </div>
+  <div id="quotes" class="section">
+    <h2>📌 Saved Quotes</h2>
+    <div id="quoteList"></div>
+  </div>
   <script>
-    const bookList = document.getElementById("bookList");
-    const uploadList = document.getElementById("uploadList");
-    const readerFrame = document.getElementById("readerFrame");
     let books = JSON.parse(localStorage.getItem("books") || "[]");
     let uploads = JSON.parse(localStorage.getItem("uploads") || "[]");
+    let quotes = JSON.parse(localStorage.getItem("quotes") || "[]");
 
     function switchSection(id) {
       document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
@@ -164,12 +188,28 @@
       document.body.classList.toggle('dark');
     }
 
+    function addBook() {
+      const title = document.getElementById("title").value;
+      const author = document.getElementById("author").value;
+      const genre = document.getElementById("genre").value;
+      const status = document.getElementById("status").value;
+      const rating = document.getElementById("rating").value;
+      const notes = document.getElementById("notes").value;
+      const cover = document.getElementById("coverEmoji").value;
+      books.push({ title, author, genre, status, rating, notes, cover });
+      localStorage.setItem("books", JSON.stringify(books));
+      renderBooks();
+    }
+
     function filterShelf(status) {
       renderBooks(status);
     }
 
     function renderBooks(filter = 'all') {
-      bookList.innerHTML = '';
+      const bookList = document.getElementById("bookList");
+      const shelf = document.getElementById("bookshelfView");
+      bookList.innerHTML = "";
+      shelf.innerHTML = "";
       books.forEach((book, index) => {
         if (filter !== 'all' && book.status !== filter) return;
         const div = document.createElement("div");
@@ -178,6 +218,9 @@
                         `Genre: ${book.genre || '—'}<br>` +
                         `Rating: ${book.rating || '—'} ⭐<br>` +
                         `${book.notes ? 'Note: ' + book.notes + '<br>' : ''}`;
+        const favBtn = document.createElement("button");
+        favBtn.textContent = "❤️ Favorite";
+        favBtn.onclick = () => alert(`Favorited ${book.title}`);
         const removeBtn = document.createElement("button");
         removeBtn.textContent = "Remove";
         removeBtn.onclick = () => {
@@ -185,9 +228,23 @@
           localStorage.setItem("books", JSON.stringify(books));
           renderBooks(filter);
         }
+        div.appendChild(favBtn);
         div.appendChild(removeBtn);
         bookList.appendChild(div);
+
+        const shelfDiv = document.createElement("div");
+        shelfDiv.className = "bookshelf-cover";
+        shelfDiv.textContent = book.title;
+        shelf.appendChild(shelfDiv);
       });
+    }
+
+    function toggleBookshelfView() {
+      const list = document.getElementById("bookList");
+      const shelf = document.getElementById("bookshelfView");
+      const isShelfVisible = shelf.style.display === 'block';
+      list.style.display = isShelfVisible ? 'block' : 'none';
+      shelf.style.display = isShelfVisible ? 'none' : 'block';
     }
 
     function backupLibrary() {
@@ -205,22 +262,18 @@
       reader.onload = function(e) {
         const data = e.target.result;
         const id = Date.now();
-        const entry = { id, name: file.name, type: file.type, content: data };
+        const entry = { id, name: file.name, content: data };
         uploads.push(entry);
         localStorage.setItem("uploads", JSON.stringify(uploads));
         renderUploads();
       };
-      if (file.type === "application/pdf") {
-        reader.readAsDataURL(file);
-      } else if (file.name.endsWith(".epub")) {
-        reader.readAsText(file);
-      } else {
-        reader.readAsText(file);
-      }
+      reader.readAsText(file);
     }
 
     function renderUploads() {
-      uploadList.innerHTML = "";
+      const list = document.getElementById("uploadList");
+      const frame = document.getElementById("readerFrame");
+      list.innerHTML = "";
       uploads.forEach(upload => {
         const div = document.createElement("div");
         div.className = "upload-item";
@@ -228,11 +281,20 @@
         const readBtn = document.createElement("button");
         readBtn.textContent = "Read";
         readBtn.onclick = () => {
-          readerFrame.style.display = 'block';
-          if (upload.type === "application/pdf") {
-            readerFrame.src = upload.content;
-          } else {
-            readerFrame.srcdoc = `<pre style='white-space: pre-wrap; padding: 1rem;'>${upload.content.replaceAll('<', '&lt;')}</pre>`;
+          frame.style.display = 'block';
+          frame.srcdoc = `<pre style='white-space: pre-wrap; padding: 1rem;'>${upload.content.replaceAll('<', '&lt;')}</pre>`;
+        };
+        const favBtn = document.createElement("button");
+        favBtn.textContent = "❤️ Favorite";
+        favBtn.onclick = () => alert(`Favorited ${upload.name}`);
+        const quoteBtn = document.createElement("button");
+        quoteBtn.textContent = "📌 Save Quote";
+        quoteBtn.onclick = () => {
+          const quote = prompt("Enter quote from this book:");
+          if (quote) {
+            quotes.push({ book: upload.name, text: quote });
+            localStorage.setItem("quotes", JSON.stringify(quotes));
+            renderQuotes();
           }
         };
         const removeBtn = document.createElement("button");
@@ -240,17 +302,38 @@
         removeBtn.onclick = () => {
           uploads = uploads.filter(u => u.id !== upload.id);
           localStorage.setItem("uploads", JSON.stringify(uploads));
-          readerFrame.style.display = 'none';
+          frame.style.display = 'none';
           renderUploads();
         };
         div.appendChild(readBtn);
+        div.appendChild(favBtn);
+        div.appendChild(quoteBtn);
         div.appendChild(removeBtn);
-        uploadList.appendChild(div);
+        list.appendChild(div);
       });
+    }
+
+    function renderQuotes() {
+      const box = document.getElementById("quoteList");
+      box.innerHTML = "";
+      quotes.forEach(q => {
+        const p = document.createElement("p");
+        p.innerHTML = `<strong>${q.book}</strong>: ${q.text}`;
+        box.appendChild(p);
+      });
+    }
+
+    function exportUploads() {
+      const blob = new Blob([JSON.stringify(uploads)], { type: "application/json" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = "my-library-uploads.json";
+      a.click();
     }
 
     renderBooks();
     renderUploads();
+    renderQuotes();
 
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('service-worker.js');
