@@ -109,6 +109,13 @@
       gap: 1rem;
       margin-bottom: 1rem;
     }
+    .book-cover {
+      max-width: 100px;
+      max-height: 150px;
+      display: block;
+      margin-bottom: 0.5rem;
+      border-radius: 0.5rem;
+    }
   </style>
 </head>
 <body>
@@ -137,6 +144,7 @@
     <input type="number" id="rating" placeholder="Rating (1-5)">
     <textarea id="notes" placeholder="Notes or thoughts..."></textarea>
     <input type="text" id="coverEmoji" placeholder="Emoji for Cover (📘, 📕, etc)">
+    <input type="file" id="coverImage" accept="image/*">
     <button onclick="addBook()">Add Book</button>
     <div class="book-list" id="bookList"></div>
     <button onclick="backupLibrary()">💾 Backup</button>
@@ -180,7 +188,12 @@
         if (filter !== 'all' && book.status !== filter) return;
         const div = document.createElement("div");
         div.className = "book-item";
-        div.innerHTML = `<strong>${book.title}</strong> by ${book.author}<br>` +
+        if (book.coverImage) {
+          div.innerHTML += `<img class="book-cover" src="${book.coverImage}" alt="Cover">`;
+        } else if (book.cover) {
+          div.innerHTML += `<div style="font-size:2rem">${book.cover}</div>`;
+        }
+        div.innerHTML += `<strong>${book.title}</strong> by ${book.author}<br>` +
                         `Genre: ${book.genre || '—'}<br>` +
                         `Rating: ${book.rating || '—'} ⭐<br>` +
                         `${book.notes ? 'Note: ' + book.notes + '<br>' : ''}`;
@@ -204,15 +217,48 @@
       });
     }
 
+    function addBook() {
+      const title = document.getElementById("title").value.trim();
+      const author = document.getElementById("author").value.trim();
+      const genre = document.getElementById("genre").value.trim();
+      const status = document.getElementById("status").value;
+      const rating = document.getElementById("rating").value.trim();
+      const notes = document.getElementById("notes").value.trim();
+      const cover = document.getElementById("coverEmoji").value.trim();
+      const imageFile = document.getElementById("coverImage").files[0];
+
+      if (!title || !author) return alert("Fill in both title and author!");
+
+      if (imageFile) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          const coverImage = e.target.result;
+          books.push({ title, author, genre, status, rating, notes, cover, coverImage });
+          localStorage.setItem("books", JSON.stringify(books));
+          renderBooks();
+        };
+        reader.readAsDataURL(imageFile);
+      } else {
+        books.push({ title, author, genre, status, rating, notes, cover });
+        localStorage.setItem("books", JSON.stringify(books));
+        renderBooks();
+      }
+    }
+
     function renderFaves() {
       faveList.innerHTML = '';
       favorites.forEach(fav => {
         const div = document.createElement("div");
         div.className = "book-item";
-        div.innerHTML = `<strong>${fav.title}</strong> by ${fav.author}<br>` +
-                        `Genre: ${fav.genre || '—'}<br>` +
-                        `Rating: ${fav.rating || '—'} ⭐<br>` +
-                        `${fav.notes ? 'Note: ' + fav.notes + '<br>' : ''}`;
+        if (fav.coverImage) {
+          div.innerHTML += `<img class="book-cover" src="${fav.coverImage}" alt="Cover">`;
+        } else if (fav.cover) {
+          div.innerHTML += `<div style="font-size:2rem">${fav.cover}</div>`;
+        }
+        div.innerHTML += `<strong>${fav.title}</strong> by ${fav.author}<br>` +
+                         `Genre: ${fav.genre || '—'}<br>` +
+                         `Rating: ${fav.rating || '—'} ⭐<br>` +
+                         `${fav.notes ? 'Note: ' + fav.notes + '<br>' : ''}`;
         faveList.appendChild(div);
       });
     }
@@ -280,32 +326,6 @@
       }
     });
 
-    function addBook() {
-  const title = document.getElementById("title").value.trim();
-  const author = document.getElementById("author").value.trim();
-  const genre = document.getElementById("genre").value.trim();
-  const status = document.getElementById("status").value;
-  const rating = document.getElementById("rating").value.trim();
-  const notes = document.getElementById("notes").value.trim();
-  const cover = document.getElementById("coverEmoji").value.trim();
-
-  if (!title || !author) return alert("Please enter both title and author!");
-
-  const newBook = { title, author, genre, status, rating, notes, cover };
-  books.push(newBook);
-  localStorage.setItem("books", JSON.stringify(books));
-  renderBooks();
-  
-  // Clear input fields after adding
-  document.getElementById("title").value = "";
-  document.getElementById("author").value = "";
-  document.getElementById("genre").value = "";
-  document.getElementById("status").value = "Reading";
-  document.getElementById("rating").value = "";
-  document.getElementById("notes").value = "";
-  document.getElementById("coverEmoji").value = "";
-    }
-    
     renderBooks();
     renderUploads();
     renderFaves();
