@@ -12,37 +12,15 @@
     }
     body {
       font-family: 'Segoe UI', sans-serif;
+      background: linear-gradient(to right, #7f9cf5, #a78bfa);
+      color: white;
       margin: 0;
       padding: 0;
       transition: background 0.3s, color 0.3s;
     }
-    body.default-theme {
-      background: linear-gradient(to right, #7f9cf5, #a78bfa);
-      color: white;
-    }
     body.dark {
       background: #1a202c;
       color: #e2e8f0;
-    }
-    body.galaxy {
-      background: linear-gradient(to right, #2a2a72, #009ffd);
-      color: #fff;
-    }
-    body.mint {
-      background: linear-gradient(to right, #b2fefa, #0ed2f7);
-      color: #064273;
-    }
-    body.sunset {
-      background: linear-gradient(to right, #ff758c, #ff7eb3);
-      color: #fff;
-    }
-    body.mist {
-      background: linear-gradient(to right, #c9d6ff, #e2e2e2);
-      color: #2f2f2f;
-    }
-    body.forest {
-      background: linear-gradient(to right, #5a3f37, #2c7744);
-      color: #fff3e2;
     }
     header {
       padding: 1rem;
@@ -60,13 +38,14 @@
       background: #6b46c1;
       padding: 1rem;
     }
-    nav button, #themeSelect {
+    nav button, nav select {
       background: #4c51bf;
       border: none;
       border-radius: 1rem;
       color: white;
       padding: 0.5rem 1rem;
       cursor: pointer;
+      font-size: 1rem;
     }
     .section {
       display: none;
@@ -131,60 +110,66 @@
       gap: 1rem;
       margin-bottom: 1rem;
     }
+    .book-cover {
+      max-width: 100px;
+      max-height: 150px;
+      display: block;
+      margin-bottom: 0.5rem;
+      border-radius: 0.5rem;
+    }
     .bookshelf-view {
       display: flex;
       flex-wrap: wrap;
       justify-content: center;
       gap: 1rem;
+      margin-top: 2rem;
     }
-    .book-cover {
+    .bookshelf-book {
       width: 100px;
-      height: 140px;
+      height: 150px;
       background: white;
       color: black;
       display: flex;
       align-items: center;
       justify-content: center;
       font-size: 2rem;
-      border-radius: 8px;
+      border-radius: 0.5rem;
       overflow: hidden;
       border: 2px solid #ccc;
     }
-    .bookshelf-toggle {
-      text-align: center;
-      margin-bottom: 1rem;
-    }
-    .theme-select-wrapper {
-      display: flex;
-      justify-content: center;
-      margin-top: 1rem;
-    }
   </style>
 </head>
-<body class="default-theme">
+<body>
   <header>My Library 📚</header>
   <nav>
     <button onclick="switchSection('tracker')">📖 Book Tracker</button>
     <button onclick="switchSection('uploads')">📂 Upload & Read</button>
     <button onclick="switchSection('favorites')">❤️ Favourites</button>
     <button onclick="toggleTheme()">🌓 Toggle Theme</button>
+    <select onchange="changeTheme(this.value)">
+      <option value="default">🎨 Theme</option>
+      <option value="galaxy">Galaxy Glow</option>
+      <option value="mint">Minty Fresh</option>
+      <option value="sunset">Sunset Pop</option>
+      <option value="mist">Cool Mist</option>
+      <option value="forest">Forest Charm</option>
+    </select>
     <button onclick="window.open('https://starryexplorers.github.io/SparkLogin/', '_blank')">🔐 Login / Sign Up</button>
   </nav>
-  <div class="theme-select-wrapper">
-    <select id="themeSelect" onchange="setTheme(this.value)">
-      <option value="default-theme">🎨 Default</option>
-      <option value="galaxy">🌌 Galaxy Glow</option>
-      <option value="mint">🌱 Minty Fresh</option>
-      <option value="sunset">🌇 Sunset Pop</option>
-      <option value="mist">❄️ Cool Mist</option>
-      <option value="forest">🌳 Forest Charm</option>
-    </select>
-  </div>
-  <!-- Remaining content remains unchanged -->
-  <script>
-    function setTheme(theme) {
-      document.body.className = theme;
-    }
-  </script>
+<!-- (rest of original unchanged content here) -->
+<script>
+function changeTheme(name) {
+  const themes = {
+    default: 'linear-gradient(to right, #7f9cf5, #a78bfa)',
+    galaxy: 'radial-gradient(circle, #1a1a40, #4b0082)',
+    mint: 'linear-gradient(to right, #a8edea, #fed6e3)',
+    sunset: 'linear-gradient(to right, #ff7e5f, #feb47b)',
+    mist: 'linear-gradient(to right, #e0eafc, #cfdef3)',
+    forest: 'linear-gradient(to right, #dbe6e4, #a3bcb6)'
+  };
+  document.body.style.background = themes[name] || themes.default;
+}
+</script>
 </body>
 </html>
+
